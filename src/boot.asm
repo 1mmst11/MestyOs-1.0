@@ -1,6 +1,7 @@
 MODULEALIGN equ 1<<0
 MEMINFO     equ 1<<1
-FLAGS       equ MODULEALIGN | MEMINFO
+GRAPHMODE   equ 1<<2
+FLAGS       equ MODULEALIGN | MEMINFO | GRAPHMODE
 MAGIC       equ 0x1BADB002
 CHECKSUM    equ -(MAGIC + FLAGS)
 
@@ -10,6 +11,15 @@ align 4
     dd FLAGS
     dd CHECKSUM
 
+    ; Заглушки адресов для GRUB
+    dd 0, 0, 0, 0, 0
+
+    ; Передаем наши жесткие графические настройки для разрешения 800x600
+    dd 0
+    dd 800
+    dd 600
+    dd 32
+
 section .text
 bits 32
 global start
@@ -17,6 +27,9 @@ extern _start
 
 start:
     cli
+
+    ; Сохраняем указатель Multiboot Info в регистр EDI для передачи в Rust
+    mov edi, ebx
 
     mov eax, 0x80000000
     cpuid
@@ -27,14 +40,29 @@ start:
     test edx, 1 << 29
     jz .no_long_mode
 
+    ; Настраиваем таблицы страниц памяти (Маппим 4 Гигабайта!)
     mov eax, p3_table
     or eax, 0b11
     mov [p4_table], eax
 
+    ; Связываем 4 записи таблицы PDPT, чтобы покрыть 4 ГБ адресного пространства
     mov eax, p2_table
     or eax, 0b11
     mov [p3_table], eax
 
+    mov eax, p2_table + 4096
+    or eax, 0b11
+    mov [p3_table + 8], eax
+
+    mov eax, p2_table + 8192
+    or eax, 0b11
+    mov [p3_table + 16], eax
+
+    mov eax, p2_table + 12288
+    or eax, 0b11
+    mov [p3_table + 24], eax
+
+    ; Цикл маппирования: заполняем 2048 страниц по 2 МБ (итого 4 ГБ памяти)
     mov ecx, 0
 .map_p2_table:
     mov eax, 0x200000
@@ -42,7 +70,7 @@ start:
     or eax, 0b10000011
     mov [p2_table + ecx * 8], eax
     inc ecx
-    cmp ecx, 512
+    cmp ecx, 2048
     jne .map_p2_table
 
     mov eax, p4_table
@@ -96,6 +124,6 @@ p4_table:
 p3_table:
     resb 4096
 p2_table:
-    resb 4096
+    resb 4096 * 4 ; Выделили место под 4 таблицы страниц для покрытия 4 ГБ памяти
 resb 8192
 stack_space:

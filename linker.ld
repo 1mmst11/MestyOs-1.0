@@ -1,15 +1,24 @@
 ENTRY(start)
-OUTPUT_FORMAT("elf64-x86-64") /* Жестко говорим линкеру выдавать 64-битный формат */
+OUTPUT_FORMAT("elf64-x86-64")
 
 SECTIONS {
-    . = 1M; /* Загружаем ядро с 1 Мегабайта оперативной памяти */
+    . = 1M;
 
-    .text : {
-        *(.multiboot) /* GRUB должен найти эту метку в первых 8 КБ файла */
+    .text : ALIGN(4K) {
+        *(.multiboot)
         *(.text)
     }
 
-    .rodata : { *(.rodata) }
-    .data   : { *(.data) }
-    .bss    : { *(.bss) }
+    .rodata : ALIGN(4K) {
+        *(.rodata)
+    }
+
+    .data : ALIGN(4K) {
+        *(.data)
+    }
+
+    .bss : ALIGN(4K) {
+        *(.bss)
+        *(COMMON)
+    }
 }
