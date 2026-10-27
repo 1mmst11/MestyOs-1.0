@@ -1,8 +1,6 @@
 # MestyOS 1.0
 
-**MestyOS** is a lightweight, 64-bit toy operating system built from scratch in Rust (`no_std`). It serves as a practical sandbox for learning low-level system programming, kernel architecture, memory management, and custom framebuffer graphics.
 
----
 
 ##  Key Features
 
